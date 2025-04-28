@@ -1,0 +1,7 @@
+model_name: "llama3-sj-weather"
+pretrained_model: "meta-llama/Llama-2-7b-chat-hf"
+checkpoint_dir: "C:\\Users\\Ken Zhang\\Git\\weather-prediction-model\\llms\\checkpoints\\llama3"
+batch_size: 1
+grad_acc_steps: 4
+epochs: 3
+learning_rate: 2e-5

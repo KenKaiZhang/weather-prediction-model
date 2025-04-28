@@ -1,0 +1,10 @@
+name: weather_lstm
+
+setup:
+  device: cuda
+
+training:
+  learning_rate: 0.001
+  optimizaer: Adam
+  criterion: MSELoss
+  epochs: 100

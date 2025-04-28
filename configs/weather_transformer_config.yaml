@@ -1,0 +1,10 @@
+name: weather_transformer
+
+setup:
+  device: cuda
+
+training:
+  learning_rate: 0.0001
+  optimizaer: Adam
+  criterion: MSELoss
+  epochs: 100
