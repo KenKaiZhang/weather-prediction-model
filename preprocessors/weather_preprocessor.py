@@ -7,7 +7,7 @@ import pandas as pd
 from typing import List
 from datasets import load_dataset, Dataset
 
-from utils.constants import _WEATHER_COLUMNS
+from utils.constants import _WEATHER_COLUMNS, _SEASONS, _SEASONS_INDEX
 
 
 class WeatherPreprocessor:
@@ -29,28 +29,56 @@ class WeatherPreprocessor:
         self.forecast_days = forecast_days
         self.features = features or _WEATHER_COLUMNS
 
-    def clean_dataset(self) -> None:
+    def preprocess_dataset(self) -> None:
 
         df = pd.read_csv(self.csv_file)
 
         # Data cleaning techniques...
 
-        # Convert and split
+        # Date parsing
         df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
+        df = df.dropna(subset=["datetime"])
+
+        # Create date features
         df["day_of_year"] = df["datetime"].dt.dayofyear
         df["year"] = df["datetime"].dt.year
         df["month"] = df["datetime"].dt.month
         df["day"] = df["datetime"].dt.day
+
+        # Adding seasons
+        def get_seasons(month: int) -> int:
+            for season, months in _SEASONS.items():
+                if month in months:
+                    return _SEASONS_INDEX[season]
+                
+        df["season"] = df["month"].apply(get_seasons)
+
+        # Drop original datetime (optional)
         df = df.drop(columns=["datetime"])
 
-        df["precip"] = np.log1p(df["precip"])
-        df["winddir_sin"] = np.sin(np.deg2rad(df["winddir"]))
-        df["winddir_cos"] = np.cos(np.deg2rad(df["winddir"]))
+        # Drop unwanted columns
+        df = df[[col for col in _WEATHER_COLUMNS if col in df.columns]]
 
-        df = df[_WEATHER_COLUMNS]
-        df = df.dropna()
+        if "winddir" in df.columns:
+            df["winddir_sin"] = np.sin(np.deg2rad(df["winddir"]))
+            df["winddir_cos"] = np.cos(np.deg2rad(df["winddir"]))
+            df = df.drop(columns=["winddir"])
 
-        self.df = df
+        if "precip" in df.columns:
+            df["precip"] = np.log1p(df["precip"])
+
+        # Capping outliers
+
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        for col in numeric_cols:
+            Q1 = df[col].quantile(0.25)
+            Q3 = df[col].quantile(0.75)
+            IQR = Q3 - Q1
+            lower_bound = Q1 - 1.5 * IQR
+            upper_bound = Q3 + 1.5 * IQR
+            df[col] = df[col].clip(lower=lower_bound, upper=upper_bound)
+
+        self.df = df.reset_index(drop=True)
 
     def to_tensor(self, normalize: bool = True):
 
